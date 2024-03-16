@@ -8,14 +8,14 @@ import "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
 
 /*
  * Native Map
- * https://github.com/home-assistant/frontend/blob/dev/src/components/map/ha-map.ts 
+ * https://github.com/home-assistant/frontend/blob/dev/src/components/map/ha-map.ts
  */
 
 class MapCard extends LitElement {
   static get properties() {
     return {
       hass: {},
-      config: {}
+      config: {},
     };
   }
 
@@ -24,49 +24,48 @@ class MapCard extends LitElement {
   /** @type {L.Map} */
   map;
 
-
   firstUpdated() {
-    this.map = this._setupMap();    
+    this.map = this._setupMap();
     // force a render when the page is done loading
     setTimeout(() => {
       this.render();
     });
   }
-  
-  render() {    
+
+  render() {
     if (this.map) {
       // First render is without the map
       if (this.firstRenderWithMap) {
-        this.entities = this._firstRender(this.map, this.hass, this.config.entities);
+        this.entities = this._firstRender(
+          this.map,
+          this.hass,
+          this.config.entities
+        );
         this.firstRenderWithMap = false;
       }
       this.entities.forEach((ent) => {
         const stateObj = this.hass.states[ent[0]];
-        const {
-          latitude,
-          longitude,
-        } = stateObj.attributes;
+        const { latitude, longitude } = stateObj.attributes;
         const marker = ent[1];
         this._updateEntity(marker, latitude, longitude);
-      })
-
+      });
     }
 
     return html`
-            <link rel="stylesheet" href="/static/images/leaflet/leaflet.css">
-            <ha-card header="${this._getTitle()}">
-                <div id="map" style="height: ${this._getMapHeight()}px"></div>
-            </ha-card>
-        `;
+      <link rel="stylesheet" href="/static/images/leaflet/leaflet.css" />
+      <ha-card header="${this._getTitle()}">
+        <div id="map" style="height: ${this._getMapHeight()}px"></div>
+      </ha-card>
+    `;
   }
 
   /** @returns {String} */
   _getEntityId(ent) {
-    return (typeof ent === 'string' || ent instanceof String)? ent : ent.entity;
+    return typeof ent === "string" || ent instanceof String ? ent : ent.entity;
   }
 
   _firstRender(map, hass, entities) {
-    console.log("First Render with Map object, resetting size.")
+    console.log("First Render with Map object, resetting size.");
     map.invalidateSize();
     return entities.map((ent) => {
       const entityId = this._getEntityId(ent);
@@ -81,19 +80,33 @@ class MapCard extends LitElement {
         radius,
         entity_picture: entityPicture,
         gps_accuracy: gpsAccuracy,
-        friendly_name
+        friendly_name,
       } = stateObj.attributes;
       if (!(latitude && longitude)) {
         console.log(ent + " has no latitude & longitude");
       }
       var marker = null;
-      switch(display) {        
-        case "icon": 
-          marker = this._drawEntityIcon(entityId, latitude, longitude, icon, friendly_name, size)
+      switch (display) {
+        case "icon":
+          marker = this._drawEntityIcon(
+            entityId,
+            latitude,
+            longitude,
+            icon,
+            friendly_name,
+            size
+          );
           break;
-        case 'marker':
-        default: 
-          marker = this._drawEntityMarker(entityId, latitude, longitude, icon, friendly_name, entityPicture)
+        case "marker":
+        default:
+          marker = this._drawEntityMarker(
+            entityId,
+            latitude,
+            longitude,
+            icon,
+            friendly_name,
+            entityPicture
+          );
           break;
       }
       marker.addTo(map);
@@ -107,8 +120,10 @@ class MapCard extends LitElement {
 
   _drawEntityIcon(entityId, latitude, longitude, icon, title, size) {
     let iconHtml = "";
-    if(icon) {
-      iconHtml = `<div class="marker" ${this._markerCss(size)}><ha-icon icon="${icon}">icon</ha-icon></div>`
+    if (icon) {
+      iconHtml = `<div class="marker" ${this._markerCss(
+        size
+      )}><ha-icon icon="${icon}">icon</ha-icon></div>`;
     } else {
       const abbr = title
         .split(" ")
@@ -116,7 +131,7 @@ class MapCard extends LitElement {
         .join("")
         .substr(0, 3)
         .toUpperCase();
-        iconHtml = `<div class="marker" ${this._markerCss(size)}>${abbr}</div>`
+      iconHtml = `<div class="marker" ${this._markerCss(size)}>${abbr}</div>`;
     }
     const marker = L.marker([latitude, longitude], {
       icon: L.divIcon({
@@ -131,11 +146,11 @@ class MapCard extends LitElement {
 
   _drawEntityMarker(entityId, latitude, longitude, icon, title, entityPicture) {
     const abbr = title
-        .split(" ")
-        .map((part) => part[0])
-        .join("")
-        .substr(0, 3)
-        .toUpperCase();
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .substr(0, 3)
+      .toUpperCase();
 
     const marker = L.marker([latitude, longitude], {
       icon: L.divIcon({
@@ -165,7 +180,7 @@ class MapCard extends LitElement {
   _setupMap() {
     L.Icon.Default.imagePath = "/static/images/leaflet/images/";
 
-    const mapEl = this.shadowRoot.querySelector('#map');
+    const mapEl = this.shadowRoot.querySelector("#map");
     let map = L.map(mapEl).setView(this._getLatLong(), this._getZoom());
 
     map.addLayer(
@@ -183,9 +198,11 @@ class MapCard extends LitElement {
   }
 
   _addTileLayers(map) {
+    var layers = {};
     this._getTileLayersConfig().forEach((l) => {
-      L.tileLayer(l.url, l.options).addTo(map);
+      layers[l.name] = L.tileLayer(l.url, l.options).addTo(map);
     });
+    L.control.layers({}, layers).addTo(map);
   }
 
   _setConfigWithDefault(input, name, d = null) {
@@ -200,7 +217,7 @@ class MapCard extends LitElement {
   }
 
   setConfig(inputConfig) {
-    this.config = {};    
+    this.config = {};
     this._setConfigWithDefault(inputConfig, "zoom", 12);
     this.config["title"] = inputConfig["title"];
     this.config["focus_entity"] = inputConfig["focus_entity"];
@@ -212,13 +229,26 @@ class MapCard extends LitElement {
     //this._setConfigWithDefault(inputConfig, "css_id", "map-card-" + (new Date()).getTime());
     this._setConfigWithDefault(inputConfig, "wms", []);
     this._setConfigWithDefault(inputConfig, "tile_layers", []);
-    this._setConfigWithDefault(inputConfig, "tile_layer_url", "https://tile.openstreetmap.org/{z}/{x}/{y}.png");
-    this._setConfigWithDefault(inputConfig, "tile_layer_attribution", '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>');
+    this._setConfigWithDefault(
+      inputConfig,
+      "tile_layer_url",
+      "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+    );
+    this._setConfigWithDefault(
+      inputConfig,
+      "tile_layer_attribution",
+      '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    );
     this._setConfigWithDefault(inputConfig, "tile_layer_options", {});
-    if((this.config.x == null || this.config.y == null) && this.config.focus_entity == null && this.config.entities.length == 0) {
-      throw new Error("We need a map latitude & longitude; set at least [x, y], a focus_entity or have at least 1 entities defined.");
+    if (
+      (this.config.x == null || this.config.y == null) &&
+      this.config.focus_entity == null &&
+      this.config.entities.length == 0
+    ) {
+      throw new Error(
+        "We need a map latitude & longitude; set at least [x, y], a focus_entity or have at least 1 entities defined."
+      );
     }
-    
   }
 
   // The height of your card. Home Assistant uses this to automatically
@@ -234,7 +264,10 @@ class MapCard extends LitElement {
 
   /** @returns {} */
   _getTileLayerOptions() {
-    return {...{attribution: this._getTileLayerAttribution()}, ...this.config.tile_layer_options};
+    return {
+      ...{ attribution: this._getTileLayerAttribution() },
+      ...this.config.tile_layer_options,
+    };
   }
 
   /** @returns {[url: String, options: {}]}} */
@@ -255,12 +288,11 @@ class MapCard extends LitElement {
   /** @returns {Int} */
   _getMapHeight() {
     if (this._getTitle()) {
-      return (this.getCardSize() * 50) + 20 - 76 - 2;
+      return this.getCardSize() * 50 + 20 - 76 - 2;
     } else {
-      return (this.getCardSize() * 50) + 20;
+      return this.getCardSize() * 50 + 20;
     }
   }
-  
 
   /** @returns {[Double, Double]} */
   _getLatLongFromXY() {
@@ -269,7 +301,7 @@ class MapCard extends LitElement {
 
   /** @returns {[Double, Double]} */
   _getLatLong() {
-    if(this.config.x && this.config.y) {
+    if (this.config.x && this.config.y) {
       return this._getLatLongFromXY();
     } else {
       return this._getLatLongFromFocusedEntity();
@@ -277,10 +309,12 @@ class MapCard extends LitElement {
   }
 
   /** @returns {[Double, Double]} */
-  _getLatLongFromFocusedEntity() {   
-    const entityId = this.config.focus_entity ? this.config.focus_entity : this._getEntityId(this.config.entities[0])
+  _getLatLongFromFocusedEntity() {
+    const entityId = this.config.focus_entity
+      ? this.config.focus_entity
+      : this._getEntityId(this.config.entities[0]);
     const entity = this.hass.states[entityId];
-    
+
     if (!entity) {
       throw new Error(`Entity ${entityId} not found`);
     }
@@ -301,12 +335,12 @@ class MapCard extends LitElement {
   }
 
   static get styles() {
-    return css`    
+    return css`
       :host {
-          display:block;     
-      }        
+        display: block;
+      }
       #map {
-        border-radius: var(--ha-card-border-radius,12px);
+        border-radius: var(--ha-card-border-radius, 12px);
       }
       .leaflet-pane {
         z-index: 0 !important;
