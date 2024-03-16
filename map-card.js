@@ -202,7 +202,6 @@ class MapCard extends LitElement {
     this._getTileLayersConfig().forEach((l) => {
       var url = l.url;
       if (l.load_url_as_template) {
-        console.log("`" + url + "`");
         url = eval("`" + url + "`");
       }
       layers[l.name] = L.tileLayer(url, l.options).addTo(map);
