@@ -6,6 +6,8 @@ import {
 
 import "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
 
+import { LayerManager } from "./layer-manager.js";
+
 /*
  * Native Map
  * https://github.com/home-assistant/frontend/blob/dev/src/components/map/ha-map.ts
@@ -23,6 +25,8 @@ class MapCard extends LitElement {
   entities = [];
   /** @type {L.Map} */
   map;
+
+  layerManager = new LayerManager();
 
   firstUpdated() {
     this.map = this._setupMap();
@@ -186,8 +190,11 @@ class MapCard extends LitElement {
     map.addLayer(
       L.tileLayer(this._getTileLayerUrl(), this._getTileLayerOptions())
     );
+
+    const configTileLayers = this._getTileLayersConfig();
+
     this._addWmsLayers(map);
-    this._addTileLayers(map);
+    this.layerManager.addTileLayers(map, configTileLayers);
     return map;
   }
 
@@ -195,18 +202,6 @@ class MapCard extends LitElement {
     this._getWmsLayersConfig().forEach((l) => {
       L.tileLayer.wms(l.url, l.options).addTo(map);
     });
-  }
-
-  _addTileLayers(map) {
-    var layers = {};
-    this._getTileLayersConfig().forEach((l) => {
-      var url = l.url;
-      if (l.load_url_as_template) {
-        url = eval("`" + url + "`");
-      }
-      layers[l.name] = L.tileLayer(url, l.options).addTo(map);
-    });
-    L.control.layers({}, layers).addTo(map);
   }
 
   _setConfigWithDefault(input, name, d = null) {
