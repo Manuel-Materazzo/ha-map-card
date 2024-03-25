@@ -25,15 +25,14 @@ class MapCard extends LitElement {
   entities = [];
   /** @type {L.Map} */
   map;
+  resizeObserver;
 
   layerManager = new LayerManager();
 
   firstUpdated() {
     this.map = this._setupMap();
-    // force a render when the page is done loading
-    setTimeout(() => {
-      this.render();
-    });
+    // redraw the map every time it resizes
+    this.resizeObserver = this._setupResizeObserver();
   }
 
   render() {
@@ -89,17 +88,10 @@ class MapCard extends LitElement {
       if (!(latitude && longitude)) {
         console.log(ent + " has no latitude & longitude");
       }
-      var marker = null;
-      switch (display) {
+      let marker = null;
+      switch(display) {
         case "icon":
-          marker = this._drawEntityIcon(
-            entityId,
-            latitude,
-            longitude,
-            icon,
-            friendly_name,
-            size
-          );
+          marker = this._drawEntityIcon(entityId, latitude, longitude, icon, friendly_name, size)
           break;
         case "marker":
         default:
@@ -180,8 +172,29 @@ class MapCard extends LitElement {
     marker.setLatLng([latitude, longitude]);
   }
 
+  _setupResizeObserver() {
+    if (this.resizeObserver) {
+      return this.resizeObserver;
+    }
+
+    const resizeObserver = new ResizeObserver(entries => {
+      for (let entry of entries) {
+        if (entry.target === this.map?.getContainer()) {
+          this.map?.invalidateSize();
+        }
+      }
+    });
+
+    resizeObserver.observe(this.map.getContainer());
+    return resizeObserver;
+  }
+
   /** @returns {L.Map} */
   _setupMap() {
+    console.info(
+      `%c nathan-gs/ha-map-card: VERSION`,
+      'color: orange; font-weight: bold; background: black'
+    )
     L.Icon.Default.imagePath = "/static/images/leaflet/images/";
 
     const mapEl = this.shadowRoot.querySelector("#map");
@@ -239,14 +252,8 @@ class MapCard extends LitElement {
       '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     );
     this._setConfigWithDefault(inputConfig, "tile_layer_options", {});
-    if (
-      (this.config.x == null || this.config.y == null) &&
-      this.config.focus_entity == null &&
-      this.config.entities.length == 0
-    ) {
-      throw new Error(
-        "We need a map latitude & longitude; set at least [x, y], a focus_entity or have at least 1 entities defined."
-      );
+    if(!(Number.isFinite(this.config.x) && Number.isFinite(this.config.y)) && this.config.focus_entity == null && this.config.entities.length == 0) {
+      throw new Error("We need a map latitude & longitude; set at least [x, y], a focus_entity or have at least 1 entities defined.");
     }
   }
 
@@ -254,6 +261,26 @@ class MapCard extends LitElement {
   // distribute all cards over the available columns.
   getCardSize() {
     return this.config.card_size;
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    // Reinitialize the map when the card gets reloaded but it's still in view
+    if (this.shadowRoot.querySelector('#map')) {
+      this.firstUpdated();
+    }
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this.map) {
+      this.map.remove();
+      this.map = undefined;
+    }
+
+    if (this.resizeObserver) {
+      this.resizeObserver.unobserve(this);
+    }
   }
 
   /** @returns {String} */
@@ -300,7 +327,7 @@ class MapCard extends LitElement {
 
   /** @returns {[Double, Double]} */
   _getLatLong() {
-    if (this.config.x && this.config.y) {
+    if(Number.isFinite(this.config.x) && Number.isFinite(this.config.y)) {
       return this._getLatLongFromXY();
     } else {
       return this._getLatLongFromFocusedEntity();
